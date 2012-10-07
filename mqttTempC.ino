@@ -3,10 +3,6 @@
 #include <math.h>
 #include <SPI.h>
 
-/*
-char* tempTopic = "byteli/temp/1";
-char* message = "LoL";*/
-
 #define aref_voltage 3.3
 
 int sensorPin = A0;
@@ -30,7 +26,6 @@ PubSubClient client(server, 1883, callback);
 void setup()
 {
   Ethernet.begin(mac, ip);
-  client.connect("arduinoTempC");
   analogReference(EXTERNAL);
   
 }
@@ -38,18 +33,28 @@ void setup()
 void loop()
 {
   
-  client.loop();
-  
-  sensorValue = analogRead(sensorPin);
-  
-  if (sensorValue - sensorOldValue != 0)
+  if(client.connected())
   {
-    float tempC = convertToTempC(sensorValue);
-    dtostrf(tempC, 5, 2, sensorString);
-    client.publish("byteli/temp/1", sensorString); 
+      client.loop();
+      sensorValue = analogRead(sensorPin);
+  
+      if (sensorValue - sensorOldValue != 0)
+      {
+        float tempC = convertToTempC(sensorValue);
+        dtostrf(tempC, 5, 2, sensorString);
+        client.publish("byteli/temp/1", sensorString); 
+      }
+    
+      sensorOldValue = sensorValue;
+  
+  
+  }
+  else
+  {
+    client.connect("arduinoTempC");
+    delay(2000);
   }
 
-  sensorOldValue = sensorValue;
   delay(1000);
  
 }
@@ -61,6 +66,6 @@ float convertToTempC(int raw)
   voltage /= 1024.0;
   
   float tempC = (voltage - 0.5) * 100 ;  //converting from 10 mv per degree wit 500 mV offset
-                                                //to degrees ((volatge - 500mV) times 100)
+                                         //to degrees ((volatge - 500mV) times 100)
   return tempC;
 }
