@@ -8,9 +8,17 @@
 int sensorPin = A0;
 int sensorValue = 0;
 int sensorOldValue = 0;
-//int celsius = 0;
+
+const int  micPin = 2;
+int micClapCounter = 0;
+int micState = 0;
+int lastmicState = 0;
+
+unsigned long lastTempPub = 0;
+unsigned long lastClap = 0;
 
 char sensorString[100];
+char buf[12];
 
 // Update these with values suitable for your network.
 byte mac[]    = {  0x90, 0xA2, 0xDA, 0x00, 0x58, 0x54 };
@@ -27,7 +35,7 @@ void setup()
 {
   Ethernet.begin(mac, ip);
   analogReference(EXTERNAL);
-  
+  pinMode(micPin, INPUT);
 }
 
 void loop()
@@ -36,16 +44,45 @@ void loop()
   if(client.connected())
   {
       client.loop();
-      sensorValue = analogRead(sensorPin);
-  
-      if (sensorValue - sensorOldValue != 0)
+
+      micState = digitalRead(micPin);
+
+      if (micState != lastmicState)
       {
-        float tempC = convertToTempC(sensorValue);
-        dtostrf(tempC, 5, 2, sensorString);
-        client.publish("byteli/temp/1", sensorString); 
+        if (micState == HIGH)
+        {
+          micClapCounter++;
+          lastClap = millis();
+          delay(15);
+        }
       }
+
+      lastmicState = micState;
+
+      if(millis() - lastClap >= 500 && micClapCounter > 0)
+      {
+        itoa(micClapCounter, buf, 10);
+        client.publish("byteli/clap", buf);
+        micClapCounter = 0;
+      }
+
+
+
+      // is it time to pubslish the temperature again
+      if(millis() < lastTempPub || millis() - lastTempPub >= 2500)
+      {
+        sensorValue = analogRead(sensorPin);
     
-      sensorOldValue = sensorValue;
+        if (sensorValue - sensorOldValue != 0)
+        {
+          float tempC = convertToTempC(sensorValue);
+          dtostrf(tempC, 5, 2, sensorString);
+          client.publish("byteli/temp/1", sensorString);
+        }
+
+        lastTempPub = millis();
+        sensorOldValue = sensorValue;
+      }
   
   
   }
@@ -54,8 +91,6 @@ void loop()
     client.connect("arduinoTempC");
     delay(2000);
   }
-
-  delay(1000);
  
 }
 
