@@ -1,41 +1,32 @@
 #include <Ethernet.h>
 #include <PubSubClient.h>
-#include <math.h>
 #include <SPI.h>
+#include <dht.h>
 
-#define aref_voltage 3.3
+dht DHT;
 
-int sensorPin = A0;
-int sensorValue = 0;
-int sensorOldValue = 0;
-
-const int  micPin = 2;
-int micClapCounter = 0;
-int micState = 0;
-int lastmicState = 0;
+float hum, temp, lastHum, lastTemp;
 
 unsigned long lastTempPub = 0;
-unsigned long lastClap = 0;
 
 char sensorString[100];
-char buf[12];
 
-// Update these with values suitable for your network.
-byte mac[]    = {  0x90, 0xA2, 0xDA, 0x00, 0x58, 0x54 };
-byte server[] = { 172, 16, 0, 70 };
-byte ip[]     = { 172, 16, 0, 45 };
+#define DHT22_PIN 7
 
 void callback(char* topic, byte* payload, unsigned int length) {
   // handle message arrived
 }
+
+// Update these with values suitable for your network.
+byte mac[]    = {  0x90, 0xA2, 0xDA, 0x0D, 0xB9, 0x1D };
+byte server[] = { 172, 16, 0, 70 };
+byte ip[]     = { 172, 16, 0, 36 };
 
 PubSubClient client(server, 1883, callback);
 
 void setup()
 {
   Ethernet.begin(mac, ip);
-  analogReference(EXTERNAL);
-  pinMode(micPin, INPUT);
 }
 
 void loop()
@@ -45,62 +36,36 @@ void loop()
   {
       client.loop();
 
-      micState = digitalRead(micPin);
-
-      if (micState != lastmicState)
-      {
-        if (micState == HIGH)
-        {
-          micClapCounter++;
-          lastClap = millis();
-          delay(15);
-        }
-      }
-
-      lastmicState = micState;
-
-      if(millis() - lastClap >= 500 && micClapCounter > 0)
-      {
-        itoa(micClapCounter, buf, 10);
-        client.publish("byteli/clap", buf);
-        micClapCounter = 0;
-      }
-
-
 
       // is it time to pubslish the temperature again
-      if(millis() < lastTempPub || millis() - lastTempPub >= 2500)
+      if(millis() < lastTempPub || millis() - lastTempPub >= 2000)
       {
-        sensorValue = analogRead(sensorPin);
+        int chk = DHT.read22(DHT22_PIN);
+        
+        hum = DHT.humidity;
+        temp  = DHT.temperature;
     
-        if (sensorValue - sensorOldValue != 0)
+        if (chk == DHTLIB_OK && temp != lastTemp)
         {
-          float tempC = convertToTempC(sensorValue);
-          dtostrf(tempC, 5, 2, sensorString);
-          client.publish("byteli/temp/1", sensorString);
+          dtostrf(temp, 5, 2, sensorString);
+          client.publish("vw/temp/1", sensorString);
+        }
+        if (chk == DHTLIB_OK && hum != lastHum)
+        {
+          dtostrf(hum, 5, 2, sensorString);
+          client.publish("vw/hum/1", sensorString);
         }
 
         lastTempPub = millis();
-        sensorOldValue = sensorValue;
+        lastHum = hum;
+        lastTemp = temp;
       }
-  
   
   }
   else
   {
-    client.connect("arduinoTempC");
+    client.connect("arduinoTempB");
     delay(2000);
   }
  
-}
-
-float convertToTempC(int raw)
-{
-  
-  float voltage = raw * aref_voltage;
-  voltage /= 1024.0;
-  
-  float tempC = (voltage - 0.5) * 100 ;  //converting from 10 mv per degree wit 500 mV offset
-                                         //to degrees ((volatge - 500mV) times 100)
-  return tempC;
 }
