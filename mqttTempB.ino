@@ -22,7 +22,8 @@ byte mac[]    = {  0x90, 0xA2, 0xDA, 0x0D, 0xB9, 0x1D };
 byte server[] = { 172, 16, 0, 70 };
 byte ip[]     = { 172, 16, 42, 36 };
 
-PubSubClient client(server, 1883, callback);
+EthernetClient ethClient;
+PubSubClient client(server, 1883, callback, ethClient);
 
 void setup()
 {
@@ -45,12 +46,12 @@ void loop()
         hum = DHT.humidity;
         temp  = DHT.temperature;
     
-        if (chk == DHTLIB_OK && temp != lastTemp)
+        if (chk == DHTLIB_OK && (temp != lastTemp || millis() - lastTempPub >= 20000))
         {
           dtostrf(temp, 5, 2, sensorString);
           client.publish("vw/temp/1", sensorString);
         }
-        if (chk == DHTLIB_OK && hum != lastHum)
+        if (chk == DHTLIB_OK && (hum != lastHum || millis() - lastTempPub >= 20000))
         {
           dtostrf(hum, 5, 2, sensorString);
           client.publish("vw/hum/1", sensorString);
