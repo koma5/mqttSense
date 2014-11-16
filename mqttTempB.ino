@@ -19,7 +19,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 // Update these with values suitable for your network.
 byte mac[]    = {  0x90, 0xA2, 0xDA, 0x0D, 0xB9, 0x1D };
-byte server[] = { 172, 16, 0, 70 };
+byte server[] = { 172, 16, 42, 70 };
 byte ip[]     = { 172, 16, 42, 36 };
 
 EthernetClient ethClient;
