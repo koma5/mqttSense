@@ -94,14 +94,26 @@ void loop()
 
           if (chk == DHTLIB_OK && (sensors[sensor].temp != sensors[sensor].lastTemp || millis() - sensors[sensor].lastTempPub >= 10000))
           {
-            dtostrf(sensors[sensor].temp, 5, 1, sensorStringBuf);
+
+            if (sensors[sensor].temp >= 10 || sensors[sensor].temp <= -10) {
+              dtostrf(sensors[sensor].temp, 4, 1, sensorStringBuf);
+            }
+            else {
+              dtostrf(sensors[sensor].temp, 3, 1, sensorStringBuf);
+            }
+
             sensors[sensor].tempTopic.toCharArray(sensorTopicStringBuf, 25);
             client.publish(sensorTopicStringBuf, sensorStringBuf);
             sensors[sensor].lastTempPub = millis();
           }
           if (chk == DHTLIB_OK && (sensors[sensor].hum != sensors[sensor].lastHum || millis() - sensors[sensor].lastHumPub >= 10000))
           {
-            dtostrf(sensors[sensor].hum, 5, 1, sensorStringBuf);
+            if (sensors[sensor].hum >= 10) {
+              dtostrf(sensors[sensor].hum, 4, 1, sensorStringBuf);
+            }
+            else {
+              dtostrf(sensors[sensor].hum, 3, 1, sensorStringBuf);
+            }
             sensors[sensor].humTopic.toCharArray(sensorTopicStringBuf, 25);
             client.publish(sensorTopicStringBuf, sensorStringBuf);
             sensors[sensor].lastHumPub = millis();
