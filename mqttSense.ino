@@ -5,13 +5,57 @@
 
 dht DHT;
 
-float hum, temp, lastHum, lastTemp;
+typedef struct {
 
-unsigned long lastTempPub = 0;
+  int DHT22_PIN;
 
-char sensorString[100];
+  float hum;
+  float temp;
 
-#define DHT22_PIN 7
+  float lastHum;
+  float lastTemp;
+
+  String humTopic;
+  String tempTopic;
+
+  unsigned long lastCheck;
+
+  unsigned long lastTempPub;
+  unsigned long lastHumPub;
+
+} sensor;
+
+#define SENSOR_COUNT 2
+
+sensor sensors[SENSOR_COUNT] = {
+  {
+    7,
+    0,
+    0,
+    0,
+    0,
+    "vw/hum/1",
+    "vw/temp/1",
+    0,
+    0,
+    0
+  },
+  {
+    8,
+    0,
+    0,
+    0,
+    0,
+    "vw/hum/2",
+    "vw/temp/2",
+    0,
+    0,
+    0
+  },
+};
+
+char sensorStringBuf[25];
+char sensorTopicStringBuf[25];
 
 void callback(char* topic, byte* payload, unsigned int length) {
   // handle message arrived
@@ -37,29 +81,35 @@ void loop()
   {
       client.loop();
 
+      for(int sensor=0; sensor<SENSOR_COUNT; sensor++) {
 
-      // is it time to pubslish the temperature again
-      if(millis() < lastTempPub || millis() - lastTempPub >= 2000)
-      {
-        int chk = DHT.read22(DHT22_PIN);
-        
-        hum = DHT.humidity;
-        temp  = DHT.temperature;
-    
-        if (chk == DHTLIB_OK && (temp != lastTemp || millis() - lastTempPub >= 20000))
-        {
-          dtostrf(temp, 5, 2, sensorString);
-          client.publish("vw/temp/1", sensorString);
-        }
-        if (chk == DHTLIB_OK && (hum != lastHum || millis() - lastTempPub >= 20000))
-        {
-          dtostrf(hum, 5, 2, sensorString);
-          client.publish("vw/hum/1", sensorString);
-        }
 
-        lastTempPub = millis();
-        lastHum = hum;
-        lastTemp = temp;
+        // is it time to pubslish the temperature again
+        if(millis() < sensors[sensor].lastCheck || millis() - sensors[sensor].lastCheck >= 2000)
+        {
+          int chk = DHT.read22(sensors[sensor].DHT22_PIN);
+
+          sensors[sensor].hum = DHT.humidity;
+          sensors[sensor].temp  = DHT.temperature;
+
+          if (chk == DHTLIB_OK && (sensors[sensor].temp != sensors[sensor].lastTemp || millis() - sensors[sensor].lastTempPub >= 10000))
+          {
+            dtostrf(sensors[sensor].temp, 5, 2, sensorStringBuf);
+            sensors[sensor].tempTopic.toCharArray(sensorTopicStringBuf, 25);
+            client.publish(sensorTopicStringBuf, sensorStringBuf);
+            sensors[sensor].lastTempPub = millis();
+          }
+          if (chk == DHTLIB_OK && (sensors[sensor].hum != sensors[sensor].lastHum || millis() - sensors[sensor].lastHumPub >= 10000))
+          {
+            dtostrf(sensors[sensor].hum, 5, 2, sensorStringBuf);
+            sensors[sensor].humTopic.toCharArray(sensorTopicStringBuf, 25);
+            client.publish(sensorTopicStringBuf, sensorStringBuf);
+            sensors[sensor].lastHumPub = millis();
+          }
+          sensors[sensor].lastHum = sensors[sensor].hum;
+          sensors[sensor].lastTemp = sensors[sensor].temp;
+          sensors[sensor].lastCheck = millis();
+        }
       }
   
   }
